@@ -39,20 +39,14 @@ void ax12Init(long baud){
 #if defined(__MK20DX256__)
     // Teensy 3.1
 #if AX12Serial == Serial1
-	uint8_t c;
-	c = UART0_C1;
-	c |= UART_C1_LOOPS | UART_C1_RSRC;
-	UART0_C1 = c;
+    UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+    CORE_PIN1_CONFIG |= PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin
 #elif AX12Serial == Serial2
-	uint8_t c;
-	c = UART1_C1;
-	c |= UART_C1_LOOPS | UART_C1_RSRC;
-	UART1_C1 = c;
+    UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+    CORE_PIN10_CONFIG |= PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin
 #elif AX12Serial == Serial3
-	uint8_t c;
-	c = UART2_C1;
-	c |= UART_C1_LOOPS | UART_C1_RSRC;
-	UART2_C1 = c;
+    UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+    CORE_PIN8_CONFIG |= PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin
 #endif
 #endif
   
