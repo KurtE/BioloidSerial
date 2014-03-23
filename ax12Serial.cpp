@@ -25,13 +25,6 @@ unsigned char ax_rx_buffer[AX12_BUFFER_SIZE];
 /** initializes serial1 transmit at baud, 8-N-1 */
 void ax12Init(long baud){
     // Need to enable the PU resistor on the TX pin
-#if AX12Serial == Serial1
-    pinMode(18, INPUT_PULLUP);
-#elif AX12Serial == Serial2
-    pinMode(16, INPUT_PULLUP);
-#elif AX12Serial == Serial3
-    pinMode(14, INPUT_PULLUP);
-#endif
     AX12Serial.begin(baud);
 
 
