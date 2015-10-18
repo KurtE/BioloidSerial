@@ -45,11 +45,10 @@ class BioloidControllerEx
 {
   public:
     /* For compatibility with legacy code */
-    BioloidControllerEx(long baud);               // baud usually 1000000
+    // Changed to two step init...
+    BioloidControllerEx();               // baud usually 1000000
+    void begin(long baud=1000000, Stream* pstream = (Stream*)PAX12Serial);
     
-    /* New-style constructor/setup */ 
-    BioloidControllerEx() {};
-    void setup(int servo_cnt);
 
     /* Pose Manipulation */
     void loadPose( const unsigned int * addr ); // load a named pose from FLASH  

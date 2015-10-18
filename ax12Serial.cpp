@@ -18,31 +18,51 @@
 */
 
 #include "ax12Serial.h"
+#ifndef __ARDUINO_X86__
 #include <avr/io.h>
+#endif 
 
 unsigned char ax_rx_buffer[AX12_BUFFER_SIZE];
 
+// Lets have the init setup  
+static Stream* s_paxStream;
+
 /** initializes serial1 transmit at baud, 8-N-1 */
-void ax12Init(long baud){
+void ax12Init(long baud, Stream* pstream ){
     // Need to enable the PU resistor on the TX pin
-    AX12Serial.begin(baud);
+    s_paxStream = pstream; 
 
-
-//  Updates for Teensy...
-#if defined(__MK20DX256__)
-    // Teensy 3.1
-#if AX12Serial == Serial1
-    UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-    CORE_PIN1_CONFIG |= PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin
-#elif AX12Serial == Serial2
-    UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-    CORE_PIN10_CONFIG |= PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin
-#elif AX12Serial == Serial3
-    UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-    CORE_PIN8_CONFIG |= PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin
-#endif
-#endif
+    // Lets do some init here
+    if (s_paxStream == &Serial) {
+        Serial.begin(baud);
+    }  
   
+    if (s_paxStream == (Stream*)&Serial1) {
+        Serial1.begin(baud);
+#if defined(__MK20DX256__) || defined(__MKL26Z64__)
+        UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+#endif
+    }    
+#ifdef SERIAL_PORT_HARDWARE1
+    if (s_paxStream == &Serial2) {
+        Serial2.begin(baud);
+#if defined(__MK20DX256__)  || defined(__MKL26Z64__)
+
+        UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        CORE_PIN10_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+#endif
+    }    
+#endif
+#ifdef SERIAL_PORT_HARDWARE2
+    if (s_paxStream == &Serial3) {
+        Serial3.begin(baud);
+#if defined(__MK20DX256__)  || defined(__MKL26Z64__)
+        UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        CORE_PIN8_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+#endif
+    }    
+#endif
     // DEBUG
 #ifdef DEBUG_PINS
     pinMode(2, OUTPUT);
@@ -59,41 +79,50 @@ void setTX(int id){
 }
 
 void setTXall(){
-#if defined(__MK20DX256__)
+#if defined(__MK20DX256__)  || defined(__MKL26Z64__)
 #define UART_C3_TXDIR			(uint8_t)0x20			// Transmitter Interrupt or DMA Transfer Enable.
     // Teensy 3.1
-#if AX12Serial == Serial1
-	uint8_t c;
-	c = UART0_C3;
-	c |= UART_C3_TXDIR;
-	UART0_C3 = c;
-#elif AX12Serial == Serial2
-	uint8_t c;
-	c = UART1_C3;
-	c |= UART_C3_TXDIR;
-	UART1_C3 = c;
-#elif AX12Serial == Serial3
-	uint8_t c;
-	c = UART2_C3;
-	c |= UART_C3_TXDIR;
-	UART2_C3 = c;
-#endif
+    if (s_paxStream == (Stream*)&Serial1) {
+        uint8_t c;
+        c = UART0_C3;
+        c |= UART_C3_TXDIR;
+        UART0_C3 = c;
+    }
+    if (s_paxStream == (Stream*)&Serial2) {
+        uint8_t c;
+        c = UART1_C3;
+        c |= UART_C3_TXDIR;
+        UART1_C3 = c;
+    }
+    if (s_paxStream == (Stream*)&Serial3) {
+        uint8_t c;
+        c = UART2_C3;
+        c |= UART_C3_TXDIR;
+        UART2_C3 = c;
+    }    
+    digitalWrite(6, LOW);
+
+#elif defined(__ARDUINO_X86__)
+    // Currently assume using USB2AX or the like
     
 #else    
-#if AX12Serial == Serial1
-    UCSR1B = /*(1 << UDRIE1) |*/ (1 << TXEN1);
-#elif AX12Serial == Serial2
-    UCSR2B = /*(1 << UDRIE3) |*/ (1 << TXEN2);
-#elif AX12Serial == Serial3
-    UCSR3B =  /*(1 << UDRIE3) |*/ (1 << TXEN3);
+    if (s_paxStream == (Stream*)&Serial1)
+        UCSR1B = /*(1 << UDRIE1) |*/ (1 << TXEN1);
+#ifdef SERIAL_PORT_HARDWARE1
+    if (s_paxStream == (Stream*)&Serial2) 
+        UCSR2B = /*(1 << UDRIE3) |*/ (1 << TXEN2);
+#endif        
+#ifdef SERIAL_PORT_HARDWARE2
+    if (s_paxStream == (Stream*)&Serial3)
+        UCSR3B =  /*(1 << UDRIE3) |*/ (1 << TXEN3);
 #endif
 #endif
 }
 
 void flushAX12InputBuffer(void)  {
     // First lets clear out any RX bytes that may be lingering in our queue
-    while (AX12Serial.available()) {
-        AX12Serial.read();   
+    while (s_paxStream->available()) {
+        s_paxStream->read();   
     }
 }
 
@@ -109,37 +138,47 @@ void setRX(int id){
     // Now wait for any pending outputs to fully transmit
     digitalWrite(5, HIGH);
 #endif
-    AX12Serial.flush();
+    s_paxStream->flush();
 #ifdef DEBUG_PINS
     digitalWrite(5, LOW);
 #endif    
     // Now setup to enable the RX and disable the TX
-#if defined(__MK20DX256__)
+#if defined(__MK20DX256__)  || defined(__MKL26Z64__)
 #define UART_C3_TXDIR			(uint8_t)0x20			// Transmitter Interrupt or DMA Transfer Enable.
     // Teensy 3.1
-#if AX12Serial == Serial1
-	uint8_t c;
-	c = UART0_C3;
-	c &= ~UART_C3_TXDIR;
-	UART0_C3 = c;
-#elif AX12Serial == Serial2
-	uint8_t c;
-	c = UART1_C3;
-	c &= ~UART_C3_TXDIR;
-	UART1_C3 = c;
-#elif AX12Serial == Serial3
-	uint8_t c;
-	c = UART2_C3;
-	c &= ~UART_C3_TXDIR;
-	UART2_C3 = c;
-#endif
+    if (s_paxStream == (Stream*)&Serial1) {
+        uint8_t c;
+        c = UART0_C3;
+        c &= ~UART_C3_TXDIR;
+        UART0_C3 = c;
+    }
+    if (s_paxStream == (Stream*)&Serial2) {
+        uint8_t c;
+        c = UART1_C3;
+        c &= ~UART_C3_TXDIR;
+        UART1_C3 = c;
+    }
+    if (s_paxStream == (Stream*)&Serial3) {
+        uint8_t c;
+        c = UART2_C3;
+        c &= ~UART_C3_TXDIR;
+        UART2_C3 = c;
+    }    
+
+    digitalWrite(6, HIGH);
+#elif defined(__ARDUINO_X86__)
+    // Currently assume using USB2AX or the like
+    
 #else    
-#if AX12Serial == Serial1 
-    UCSR1B = ((1 << RXCIE1) | (1 << RXEN1));
-#elif AX12Serial == Serial2
-    UCSR2B = ((1 << RXCIE2) | (1 << RXEN2);
-#elif AX12Serial == Serial3
-    UCSR3B = ((1 << RXCIE3) | (1 << RXEN3));
+    if (s_paxStream == (Stream*)&Serial1)
+        UCSR1B = ((1 << RXCIE1) | (1 << RXEN1));
+#ifdef SERIAL_PORT_HARDWARE1
+    if (s_paxStream == (Stream*)&Serial2) 
+        UCSR2B = ((1 << RXCIE2) | (1 << RXEN2);
+#endif        
+#ifdef SERIAL_PORT_HARDWARE2
+    if (s_paxStream == (Stream*)&Serial3)
+        UCSR3B = ((1 << RXCIE3) | (1 << RXEN3));
 #endif
 #endif
 }
@@ -147,12 +186,12 @@ void setRX(int id){
 
 /** Sends a character out the serial port. */
 void ax12write(unsigned char data){
-    AX12Serial.write(data);
+    s_paxStream->write(data);
 }
 
 /** Sends a character out the serial port, and puts it in the tx_buffer */
 void ax12writeB(unsigned char data){
-    AX12Serial.write(data);
+    s_paxStream->write(data);
 }
 /** We have a one-way recieve buffer, which is reset after each packet is receieved.
     A wrap-around buffer does not appear to be fast enough to catch all bytes at 1Mbps. */
@@ -162,7 +201,7 @@ int ax12Error;
 int ax12GetLastError(){ return ax12Error; }
 /** > 0 = success */
 
-#if defined(__MK20DX256__)
+#if defined(__MK20DX256__)  || defined(__MKL26Z64__)
 #define COUNTER_TIMEOUT 12000
 #else
 #define COUNTER_TIMEOUT 3000
@@ -171,7 +210,6 @@ int ax12GetLastError(){ return ax12Error; }
 int ax12ReadPacket(int length){
     unsigned long ulCounter;
     unsigned char offset, checksum;
-    unsigned char volatile bcount; 
 	unsigned char *psz; 
 	unsigned char *pszEnd;
     int ch;
@@ -181,7 +219,6 @@ int ax12ReadPacket(int length){
     digitalWrite(2, HIGH);
 #endif
     offset = 0;
-    bcount = 0;
 	
 	psz = ax_rx_buffer;
 	pszEnd = &ax_rx_buffer[length];
@@ -194,7 +231,7 @@ int ax12ReadPacket(int length){
 	// Need to wait for a character or a timeout...
 	do {
 		ulCounter = COUNTER_TIMEOUT;
-        while ((ch = AX12Serial.read()) == -1) {
+        while ((ch = s_paxStream->read()) == -1) {
 			if (!--ulCounter) {
 #ifdef DEBUG_PINS
                 digitalWrite(3, !digitalRead(3));
@@ -207,7 +244,7 @@ int ax12ReadPacket(int length){
 	*psz++ = 0xff;
 	while (psz != pszEnd) {
 		ulCounter = COUNTER_TIMEOUT;
-        while ((ch = AX12Serial.read()) == -1) {
+        while ((ch = s_paxStream->read()) == -1) {
 			if (!--ulCounter)  {
 #ifdef DEBUG_PINS
                 digitalWrite(3, !digitalRead(3));
