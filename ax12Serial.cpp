@@ -63,13 +63,6 @@ void ax12Init(long baud, Stream* pstream ){
 #endif
     }    
 #endif
-    // DEBUG
-#ifdef DEBUG_PINS
-    pinMode(2, OUTPUT);
-    pinMode(3, OUTPUT);
-    pinMode(4, OUTPUT);
-    pinMode(5, OUTPUT);
-#endif    
     setRX(0);    
 }
 
@@ -100,7 +93,6 @@ void setTXall(){
         c |= UART_C3_TXDIR;
         UART2_C3 = c;
     }    
-    digitalWrite(6, LOW);
 
 #elif defined(__ARDUINO_X86__)
     // Currently assume using USB2AX or the like
@@ -128,20 +120,9 @@ void flushAX12InputBuffer(void)  {
 
 void setRX(int id){ 
   
-#ifdef DEBUG_PINS
-    digitalWrite(4, HIGH);
-#endif
     // First clear our input buffer
 	flushAX12InputBuffer();
-#ifdef DEBUG_PINS
-    digitalWrite(4, LOW);
-    // Now wait for any pending outputs to fully transmit
-    digitalWrite(5, HIGH);
-#endif
     s_paxStream->flush();
-#ifdef DEBUG_PINS
-    digitalWrite(5, LOW);
-#endif    
     // Now setup to enable the RX and disable the TX
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
 #define UART_C3_TXDIR			(uint8_t)0x20			// Transmitter Interrupt or DMA Transfer Enable.
@@ -165,7 +146,6 @@ void setRX(int id){
         UART2_C3 = c;
     }    
 
-    digitalWrite(6, HIGH);
 #elif defined(__ARDUINO_X86__)
     // Currently assume using USB2AX or the like
     
@@ -215,16 +195,10 @@ int ax12ReadPacket(int length){
     int ch;
     
 
-#ifdef DEBUG_PINS
-    digitalWrite(2, HIGH);
-#endif
     offset = 0;
 	
 	psz = ax_rx_buffer;
 	pszEnd = &ax_rx_buffer[length];
-#ifdef DEBUG
-	pinMode(A4, OUTPUT);
-#endif
 	
     flushAX12InputBuffer();
 	
@@ -233,10 +207,6 @@ int ax12ReadPacket(int length){
 		ulCounter = COUNTER_TIMEOUT;
         while ((ch = s_paxStream->read()) == -1) {
 			if (!--ulCounter) {
-#ifdef DEBUG_PINS
-                digitalWrite(3, !digitalRead(3));
-                digitalWrite(2, LOW);
-#endif
 				return 0;		// Timeout
 			}
 		}
@@ -246,33 +216,15 @@ int ax12ReadPacket(int length){
 		ulCounter = COUNTER_TIMEOUT;
         while ((ch = s_paxStream->read()) == -1) {
 			if (!--ulCounter)  {
-#ifdef DEBUG_PINS
-                digitalWrite(3, !digitalRead(3));
-                digitalWrite(2, LOW);
-#endif
 				return 0;		// Timeout
 			}
 		}
 		*psz++ = (unsigned char)ch;
 	}
     checksum = 0;
-#ifdef DEBUG_PINS
-    digitalWrite(2, LOW);
-#endif
     for(offset=2;offset<length;offset++)
         checksum += ax_rx_buffer[offset];
     if(checksum != 255){
-#ifdef DEBUG
-		Serial.println("");
-		for(offset=0;offset<length;offset++) {
-			Serial.print(ax_rx_buffer[offset], HEX);
-			Serial.print(" ");
-		}
-		Serial.println("");
-#endif		
-#ifdef DEBUG_PINS
-        digitalWrite(3, !digitalRead(3));
-#endif
         return 0;
     }else{
         return 1;
