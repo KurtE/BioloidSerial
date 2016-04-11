@@ -43,23 +43,25 @@ void ax12Init(long baud, Stream* pstream, int direction_pin ){
     if (s_paxStream == (Stream*)&Serial1) {
         Serial1.begin(baud);
 #if defined(__MK20DX256__) || defined(__MKL26Z64__)
-        if (s_direction_pin == -1)
+        if (s_direction_pin == -1) {
             UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+            CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        }
         else
             Serial1.transmitterEnable(s_direction_pin);
-//        CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
 #endif
     }    
 #ifdef SERIAL_PORT_HARDWARE1
     if (s_paxStream == &Serial2) {
         Serial2.begin(baud);
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
-        if (s_direction_pin == -1)
+        if (s_direction_pin == -1) {
             UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+            CORE_PIN10_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        }
         else
             Serial2.transmitterEnable(s_direction_pin);
 
-//        CORE_PIN10_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
 #endif
     }    
 #endif
@@ -67,11 +69,12 @@ void ax12Init(long baud, Stream* pstream, int direction_pin ){
     if (s_paxStream == &Serial3) {
         Serial3.begin(baud);
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
-        if (s_direction_pin == -1)
+        if (s_direction_pin == -1) {
             UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+            CORE_PIN8_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        }
         else
             Serial3.transmitterEnable(s_direction_pin);
-//        CORE_PIN8_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
 #endif
     }    
 #endif
