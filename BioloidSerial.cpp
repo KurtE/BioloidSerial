@@ -25,7 +25,7 @@ BioloidControllerEx::BioloidControllerEx( ){
   
 }
 
-void BioloidControllerEx::begin(long baud, Stream* pstream ){
+void BioloidControllerEx::begin(long baud, Stream* pstream, int direction_pin){
     int i;
     // setup storage
     id_ = (unsigned char *) malloc(AX12_MAX_SERVOS * sizeof(unsigned char));
@@ -42,7 +42,7 @@ void BioloidControllerEx::begin(long baud, Stream* pstream ){
     interpolating = 0;
     playing = 0;
     nextframe_ = millis();
-    ax12Init(baud, pstream);  
+    ax12Init(baud, pstream, direction_pin);  
 }
 
 

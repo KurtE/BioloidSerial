@@ -26,11 +26,14 @@ unsigned char ax_rx_buffer[AX12_BUFFER_SIZE];
 
 // Lets have the init setup  
 static Stream* s_paxStream;
+static int s_direction_pin = -1;    // assume no direction pin. 
+
 
 /** initializes serial1 transmit at baud, 8-N-1 */
-void ax12Init(long baud, Stream* pstream ){
+void ax12Init(long baud, Stream* pstream, int direction_pin ){
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pstream; 
+    s_direction_pin = direction_pin;    // save away. 
 
     // Lets do some init here
     if (s_paxStream == &Serial) {
@@ -40,17 +43,23 @@ void ax12Init(long baud, Stream* pstream ){
     if (s_paxStream == (Stream*)&Serial1) {
         Serial1.begin(baud);
 #if defined(__MK20DX256__) || defined(__MKL26Z64__)
-        UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-        CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        if (s_direction_pin == -1)
+            UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        else
+            Serial1.transmitterEnable(s_direction_pin);
+//        CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
 #endif
     }    
 #ifdef SERIAL_PORT_HARDWARE1
     if (s_paxStream == &Serial2) {
         Serial2.begin(baud);
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
+        if (s_direction_pin == -1)
+            UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        else
+            Serial2.transmitterEnable(s_direction_pin);
 
-        UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-        CORE_PIN10_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+//        CORE_PIN10_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
 #endif
     }    
 #endif
@@ -58,8 +67,11 @@ void ax12Init(long baud, Stream* pstream ){
     if (s_paxStream == &Serial3) {
         Serial3.begin(baud);
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
-        UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-        CORE_PIN8_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        if (s_direction_pin == -1)
+            UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        else
+            Serial3.transmitterEnable(s_direction_pin);
+//        CORE_PIN8_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
 #endif
     }    
 #endif
@@ -73,25 +85,18 @@ void setTX(int id){
 
 void setTXall(){
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
-#define UART_C3_TXDIR			(uint8_t)0x20			// Transmitter Interrupt or DMA Transfer Enable.
-    // Teensy 3.1
+    // Teensy 3.1/2 or LC
+    if (s_direction_pin != -1)
+        return;
+
     if (s_paxStream == (Stream*)&Serial1) {
-        uint8_t c;
-        c = UART0_C3;
-        c |= UART_C3_TXDIR;
-        UART0_C3 = c;
+        UART0_C3 |= UART_C3_TXDIR;
     }
     if (s_paxStream == (Stream*)&Serial2) {
-        uint8_t c;
-        c = UART1_C3;
-        c |= UART_C3_TXDIR;
-        UART1_C3 = c;
+        UART1_C3 |= UART_C3_TXDIR;
     }
     if (s_paxStream == (Stream*)&Serial3) {
-        uint8_t c;
-        c = UART2_C3;
-        c |= UART_C3_TXDIR;
-        UART2_C3 = c;
+        UART2_C3 |= UART_C3_TXDIR;
     }    
 
 #elif defined(__ARDUINO_X86__)
@@ -123,27 +128,21 @@ void setRX(int id){
     // First clear our input buffer
 	flushAX12InputBuffer();
     s_paxStream->flush();
+    //digitalWriteFast(4, HIGH);
     // Now setup to enable the RX and disable the TX
+    // If we are using hardware direction pin, can bypass the rest... 
+    if (s_direction_pin != -1)
+        return;
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
-#define UART_C3_TXDIR			(uint8_t)0x20			// Transmitter Interrupt or DMA Transfer Enable.
     // Teensy 3.1
     if (s_paxStream == (Stream*)&Serial1) {
-        uint8_t c;
-        c = UART0_C3;
-        c &= ~UART_C3_TXDIR;
-        UART0_C3 = c;
+        UART0_C3 &= ~UART_C3_TXDIR;
     }
     if (s_paxStream == (Stream*)&Serial2) {
-        uint8_t c;
-        c = UART1_C3;
-        c &= ~UART_C3_TXDIR;
-        UART1_C3 = c;
+        UART1_C3 &= ~UART_C3_TXDIR;
     }
     if (s_paxStream == (Stream*)&Serial3) {
-        uint8_t c;
-        c = UART2_C3;
-        c &= ~UART_C3_TXDIR;
-        UART2_C3 = c;
+        UART2_C3 &= ~UART_C3_TXDIR;
     }    
 
 #elif defined(__ARDUINO_X86__)
@@ -161,12 +160,17 @@ void setRX(int id){
         UCSR3B = ((1 << RXCIE3) | (1 << RXEN3));
 #endif
 #endif
+    //digitalWriteFast(4, LOW);
 }
 
 
 /** Sends a character out the serial port. */
 void ax12write(unsigned char data){
     s_paxStream->write(data);
+}
+
+void ax12write(unsigned char *pdata, int length){
+    s_paxStream->write(pdata, length);
 }
 
 /** Sends a character out the serial port, and puts it in the tx_buffer */

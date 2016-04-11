@@ -131,13 +131,14 @@
 #define AX_OBSTACLE_DETECTION       32
 #define AX_BUZZER_INDEX             40
 
-void ax12Init(long baud, Stream* pStream);
+void ax12Init(long baud, Stream* pStream, int direction_pin = -1);
 
 void setTXall();     // for sync write
 void setTX(int id);
 void setRX(int id);
 
 void ax12write(unsigned char data);
+void ax12write(unsigned char *pdata, int length);
 void ax12writeB(unsigned char data);
 
 int ax12ReadPacket(int length);

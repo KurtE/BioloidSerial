@@ -47,7 +47,7 @@ class BioloidControllerEx
     /* For compatibility with legacy code */
     // Changed to two step init...
     BioloidControllerEx();               // baud usually 1000000
-    void begin(long baud=1000000, Stream* pstream = (Stream*)PAX12Serial);
+    void begin(long baud=1000000, Stream* pstream = (Stream*)PAX12Serial, int direction_pin = -1);
     
 
     /* Pose Manipulation */
