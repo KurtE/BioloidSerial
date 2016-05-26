@@ -46,9 +46,14 @@ void ax12Init(long baud, Stream* pstream, int direction_pin ){
         if (s_direction_pin == -1) {
             UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
             CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
-        }
-        else
+        } else {
             Serial1.transmitterEnable(s_direction_pin);
+        }
+#elif defined(TEENSYDUINO)
+        // Handle on Teensy2...
+        if (s_direction_pin != -1) {
+            Serial1.transmitterEnable(s_direction_pin);
+        }
 #endif
     }    
 #ifdef SERIAL_PORT_HARDWARE1
@@ -58,9 +63,9 @@ void ax12Init(long baud, Stream* pstream, int direction_pin ){
         if (s_direction_pin == -1) {
             UART1_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
             CORE_PIN10_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
-        }
-        else
+        } else {
             Serial2.transmitterEnable(s_direction_pin);
+        }
 
 #endif
     }    
@@ -72,25 +77,40 @@ void ax12Init(long baud, Stream* pstream, int direction_pin ){
         if (s_direction_pin == -1) {
             UART2_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
             CORE_PIN8_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
-        }
-        else
+        } else {
             Serial3.transmitterEnable(s_direction_pin);
+        }
 #endif
     }    
 #endif
+
+    // Setup direction pin.  If Teensyduino then built in support in hardware serial class. 
+#if !defined(TEENSYDUINO)      
+    if (s_direction_pin != -1) {
+        // For other setups...
+        pinMode(s_direction_pin, OUTPUT);
+        digitalWrite(s_direction_pin, LOW);
+    }
+#endif        
     setRX(0);    
 }
 
 /** helper functions to switch direction of comms */
-void setTX(int id){
-    setTXall();
+// Removed extra call for normal case... 
+void setTXall(){
+    setTX(0);
 }
 
-void setTXall(){
+void setTX(int id){
+    if (s_direction_pin != -1) {
+#if !defined(TEENSYDUINO)      
+        digitalWrite(s_direction_pin, HIGH);
+#endif        
+        return;
+    }
+
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
     // Teensy 3.1/2 or LC
-    if (s_direction_pin != -1)
-        return;
 
     if (s_paxStream == (Stream*)&Serial1) {
         UART0_C3 |= UART_C3_TXDIR;
@@ -130,12 +150,18 @@ void setRX(int id){
   
     // First clear our input buffer
 	flushAX12InputBuffer();
-    s_paxStream->flush();
     //digitalWriteFast(4, HIGH);
     // Now setup to enable the RX and disable the TX
     // If we are using hardware direction pin, can bypass the rest... 
-    if (s_direction_pin != -1)
+    if (s_direction_pin != -1) {
+#if !defined(TEENSYDUINO)      
+        // Make sure all of the output has happened before we switch the direction pin. 
+        s_paxStream->flush();
+        digitalWrite(s_direction_pin, LOW);
+#endif        
         return;
+    }
+
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
     // Teensy 3.1
     if (s_paxStream == (Stream*)&Serial1) {
@@ -152,8 +178,9 @@ void setRX(int id){
     // Currently assume using USB2AX or the like
     
 #else    
-    if (s_paxStream == (Stream*)&Serial1)
+    if (s_paxStream == (Stream*)&Serial1) {
         UCSR1B = ((1 << RXCIE1) | (1 << RXEN1));
+    }
 #ifdef SERIAL_PORT_HARDWARE1
     if (s_paxStream == (Stream*)&Serial2) 
         UCSR2B = ((1 << RXCIE2) | (1 << RXEN2);
@@ -168,16 +195,40 @@ void setRX(int id){
 
 
 /** Sends a character out the serial port. */
-void ax12write(unsigned char data){
-    s_paxStream->write(data);
+void inline ax12write(unsigned char data){
+    ax12writeB(data);
 }
 
 void ax12write(unsigned char *pdata, int length){
+#if defined(ARDUINO_ARCH_AVR)
+    while (length--)
+        ax12writeB(*pdata++);
+#else
     s_paxStream->write(pdata, length);
+#endif    
 }
 
 /** Sends a character out the serial port, and puts it in the tx_buffer */
 void ax12writeB(unsigned char data){
+    // BUGBUG:: on AVR processors, try to force not using output queue
+#if defined(ARDUINO_ARCH_AVR)
+    if (s_paxStream == (Stream*)&Serial1) {
+        while ( (UCSR1A & (1 << UDRE1)) == 0)
+            ;
+    }
+#ifdef SERIAL_PORT_HARDWARE1
+    if (s_paxStream == (Stream*)&Serial2) {
+        while ( (UCSR2A & (1 << UDRE2)) == 0)
+            ;
+    }
+#endif        
+#ifdef SERIAL_PORT_HARDWARE2
+    if (s_paxStream == (Stream*)&Serial3) {
+        while ( (UCSR3A & (1 << UDRE3)) == 0)
+            ;
+    }
+#endif
+#endif    
     s_paxStream->write(data);
 }
 /** We have a one-way recieve buffer, which is reset after each packet is receieved.
