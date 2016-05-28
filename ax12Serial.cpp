@@ -162,6 +162,8 @@ void setRX(int id){
         return;
     }
 
+    // Make sure everything is output before switching. 
+    s_paxStream->flush();
 #if defined(__MK20DX256__)  || defined(__MKL26Z64__)
     // Teensy 3.1
     if (s_paxStream == (Stream*)&Serial1) {
