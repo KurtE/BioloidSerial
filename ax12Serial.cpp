@@ -83,6 +83,26 @@ void ax12Init(long baud, Stream* pstream, int direction_pin ){
 #endif
     }
 #endif
+#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(KINETISL)
+    else if (s_paxStream == &Serial4) {
+        Serial4.begin(baud);
+        if (s_direction_pin == -1) {
+            UART3_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+            CORE_PIN32_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        } else {
+            Serial4.transmitterEnable(s_direction_pin);
+        }
+    }
+    else if (s_paxStream == &Serial5) {
+        Serial5.begin(baud);
+        if (s_direction_pin == -1) {
+            UART4_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+            CORE_PIN33_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        } else {
+            Serial5.transmitterEnable(s_direction_pin);
+        }
+    }
+#endif
 
     // Setup direction pin.  If Teensyduino then built in support in hardware serial class.
 #if !defined(TEENSYDUINO)
@@ -115,13 +135,20 @@ void setTX(int id){
     if (s_paxStream == (Stream*)&Serial1) {
         UART0_C3 |= UART_C3_TXDIR;
     }
-    if (s_paxStream == (Stream*)&Serial2) {
+    else if (s_paxStream == (Stream*)&Serial2) {
         UART1_C3 |= UART_C3_TXDIR;
     }
-    if (s_paxStream == (Stream*)&Serial3) {
+    else if (s_paxStream == (Stream*)&Serial3) {
         UART2_C3 |= UART_C3_TXDIR;
     }
-
+#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(KINETISL)
+    else if (s_paxStream == (Stream*)&Serial4) {
+        UART3_C3 |= UART_C3_TXDIR;
+    }
+    else if (s_paxStream == (Stream*)&Serial5) {
+        UART4_C3 |= UART_C3_TXDIR;
+    }
+#endif
 #elif defined(__ARDUINO_X86__)
     // Currently assume using USB2AX or the like
 
@@ -176,6 +203,14 @@ void setRX(int id){
         UART2_C3 &= ~UART_C3_TXDIR;
     }
 
+#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(KINETISL)
+    else if (s_paxStream == (Stream*)&Serial4) {
+        UART3_C3 &= ~UART_C3_TXDIR;
+    }
+    else if (s_paxStream == (Stream*)&Serial5) {
+        UART4_C3 &= ~UART_C3_TXDIR;
+    }
+#endif
 #elif defined(__ARDUINO_X86__)
     // Currently assume using USB2AX or the like
 
