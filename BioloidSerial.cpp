@@ -190,8 +190,13 @@ void BioloidControllerEx::playSeq( const transition_t  * addr ){
     transitions = (int)(uint16_t)pgm_read_word_near(&sequence->time);
     sequence++;    
     // load a transition
+#if defined(KINETISK) || defined(__MKL26Z64__)
+    loadPose(sequence->pose);
+    interpolateSetup(sequence->time);
+#else
     loadPose((const unsigned int *)(uint16_t)pgm_read_word_near(&sequence->pose));
     interpolateSetup((uint16_t)pgm_read_word_near(&sequence->time));
+#endif    
     transitions--;
     playing = 1;
 }
@@ -204,8 +209,13 @@ void BioloidControllerEx::play(){
   else{  // move onto next pose
         sequence++;   
         if(transitions > 0){
+#if defined(KINETISK) || defined(__MKL26Z64__)
+            loadPose(sequence->pose);
+            interpolateSetup(sequence->time);
+#else
             loadPose((const unsigned int *)pgm_read_word_near(&sequence->pose));
             interpolateSetup(pgm_read_word_near(&sequence->time));
+#endif            
             transitions--;
     }
     else{
