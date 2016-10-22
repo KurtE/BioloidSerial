@@ -232,7 +232,7 @@ void setRX(int id){
 
 
 /** Sends a character out the serial port. */
-void inline ax12write(unsigned char data){
+void ax12write(unsigned char data){
     ax12writeB(data);
 }
 
