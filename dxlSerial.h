@@ -154,7 +154,7 @@
 #define DXL_X_MIN_VOLTAGE_LIMIT    34  // 2 60
 #define DXL_X_PWM_LIMIT            36  // 2 885
 #define DXL_X_ACCELERATION_LIMIT   40  // 4 32767
-#define DXL_X_VElOCItY_LIMIT       44  // 4 415
+#define DXL_X_VElOCITY_LIMIT       44  // 4 415
 #define DXL_X_MAX_POSITION_LIMIT   48  // 4 4095
 #define DXL_X_MIN_POSITION_LIMIT   52  // 4 0
 #define DXL_X_SHUTDOWN             63  // 1 52
@@ -188,7 +188,7 @@
 #define DXL_X_VELOCITY_TRAJECTORY  136 // 4 (R)
 #define DXL_X_POSITION_TRAJECTORY  140 // 4 (R)
 #define DXL_X_PRESENT_INPUT_VOLTAGE  144 // 2 (R)
-#define DXL_X_PReSENT_TEMPERATURE  146 // 1 (R)
+#define DXL_X_PRESENT_TEMPERATURE  146 // 1 (R)
 // (Indirects maybe added later?)
 
 
@@ -204,11 +204,14 @@ void setRX(int id);
 void dxlWrite(unsigned char data);
 void dxlWrite(unsigned char *pdata, int length);
 
+
 int ax12ReadPacket(int length);
 int ax12GetRegister(int id, int regstart, int length);
 void ax12SetRegister(int id, int regstart, int data);
 void ax12SetRegister2(int id, int regstart, int data);
 int dxlGetLastError();
+
+bool dxlP1SyncWrite(uint8_t servo_count, uint8_t regstart, uint8_t regcount, uint8_t *buffer);
 
 // protocol 2
 
@@ -216,6 +219,7 @@ void dxlP2SetRegisters(int id, int regstart, uint32_t data, uint8_t data_size=1)
 int dxlP2GetRegisters(int id, int regstart, int length);
 int dxlP2ReadPacket();
 uint32_t dxlP2Ping(int id);
+bool dxlP2SyncWrite(uint8_t servo_count, uint16_t regstart, uint16_t regcount, uint8_t *buffer);
 
 extern unsigned char ax_rx_buffer[AX12_BUFFER_SIZE];
 extern uint8_t ax_tx_buffer[AX12_BUFFER_SIZE];

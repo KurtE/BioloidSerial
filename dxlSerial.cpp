@@ -643,7 +643,7 @@ int dxlP2GetRegisters(int id, int regstart, int length){
     }
 }
 
-uint32_t dxlP2Ping(int id){
+uint32_t dxlP2Ping(int id) {
     setTX(id);
 
     uint8_t *packet = ax_tx_buffer;
@@ -669,5 +669,60 @@ uint32_t dxlP2Ping(int id){
     }else{
         return 0;
     }
+}
+
+//=============================================================================
+
+bool dxlP1SyncWrite(uint8_t servo_count, uint8_t regstart, uint8_t regcount, uint8_t *buffer) {
+    uint16_t buffer_length = (servo_count * (regcount+1));   
+    int checksum = 254 + (buffer_length + 4) + AX_SYNC_WRITE + regcount + regstart;
+    setTXall();
+    ax12write(0xFF);
+    ax12write(0xFF);
+    ax12write(0xFE);
+    ax12write(buffer_length + 4);
+    ax12write(AX_SYNC_WRITE);
+    ax12write(regstart);
+    ax12write(regcount);
+    for(int i=0; i<buffer_length; i++)
+    {
+        checksum += *buffer;
+        ax12write(*buffer);
+        buffer++;
+    } 
+    ax12write(0xff - (checksum % 256));
+    setRX(0);
+
+    return true;
+}
+
+bool dxlP2SyncWrite(uint8_t servo_count, uint16_t regstart, uint16_t regcount, uint8_t *buffer) {
+    uint8_t *packet = ax_tx_buffer;
+    uint16_t buffer_length = (servo_count * (regcount+1));  
+    uint16_t packet_length = buffer_length + 7;
+    *packet++ = 0xFF;   //0
+    *packet++ = 0xFF;   // 1
+    *packet++ = 0xFd;   // 2
+    *packet++ = 0;      // 3
+    *packet++ = 0xfe;     // 4
+    *packet++ = packet_length & 0xff;    // 
+    *packet++ = packet_length >> 8;    // msb
+    *packet++ = AX_SYNC_WRITE;
+    *packet++ = regstart & 0xff;    // 
+    *packet++ = regstart >> 8;    // msb
+    *packet++ = regcount & 0xff;    // 
+    *packet++ = regcount >> 8;    // msb
+
+    // checksum = currently the 
+    uint16_t CRC = update_crc ( 0, ax_tx_buffer,  (uint16_t)(packet-ax_tx_buffer));
+    CRC = update_crc(CRC, buffer, buffer_length);
+    setTXall();
+    dxlWrite(ax_tx_buffer, (uint16_t)(packet-ax_tx_buffer)); // output the first part of the packet
+    dxlWrite(buffer, buffer_length);
+    dxlWrite(CRC & 0xff);
+    dxlWrite((CRC>>8) & 0xff);
+
+    setRX(0);
+    return true;
 }
 
