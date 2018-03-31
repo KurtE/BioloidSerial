@@ -134,8 +134,18 @@
 #define AX_BUZZER_INDEX             40
 
 //=============================================================
-// Defines for 
+// Defines for X series (XL430)
 //=============================================================================
+#define DXL_PING                    1
+#define DXL_READ_DATA               2
+#define DXL_WRITE_DATA              3
+#define DXL_REG_WRITE               4
+#define DXL_ACTION                  5
+#define DXL_RESET                   6
+#define DXL_SYNC_READ               0x82
+#define DXL_SYNC_WRITE              0x83
+
+
 /** EEPROM AREA **/
 #define DXL_X_MODEL_NUMBER         0 //2 1060(xl430-250)
 #define DXL_X_MODEL_INFORMATION    2 //4
@@ -194,7 +204,7 @@
 
 //=============================================================
 // Helper functions
-void dxlInit(long baud, Stream* pStream, int direction_pin = -1);
+void dxlInit(long baud, Stream* pStream, int direction_pin = -1, int tx_pin = -1, int rx_pin = -1);
 void dxlEnd();
 
 void setTXall();     // for sync write
@@ -220,6 +230,7 @@ int dxlP2GetRegisters(int id, int regstart, int length);
 int dxlP2ReadPacket();
 uint32_t dxlP2Ping(int id);
 bool dxlP2SyncWrite(uint8_t servo_count, uint16_t regstart, uint16_t regcount, uint8_t *buffer);
+bool dxlP2SyncRead(uint8_t servo_count, uint16_t regstart, uint16_t regcount, uint8_t *buffer);
 
 extern unsigned char ax_rx_buffer[AX12_BUFFER_SIZE];
 extern uint8_t ax_tx_buffer[AX12_BUFFER_SIZE];

@@ -31,7 +31,7 @@ static int s_direction_pin = -1;    // assume no direction pin.
 
 
 /** initializes serial1 transmit at baud, 8-N-1 */
-void dxlInit(long baud, Stream* pstream, int direction_pin ){
+void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_pin ) {
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pstream;
     s_direction_pin = direction_pin;    // save away.
@@ -44,9 +44,18 @@ void dxlInit(long baud, Stream* pstream, int direction_pin ){
     if (s_paxStream == (Stream*)&Serial1) {
         Serial1.begin(baud);
 #if defined(KINETISK) || defined(__MKL26Z64__)
+        if (tx_pin != -1) {
+            Serial1.setTX(tx_pin);
+        } else {
+            tx_pin = 1; // default Serial 1 TX
+        }
+        if (rx_pin != -1) {
+            Serial1.setRX(rx_pin);
+        }
         if (s_direction_pin == -1) {
             UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
-            CORE_PIN1_CONFIG = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+            volatile uint32_t *reg = portConfigRegister(tx_pin);
+            *reg = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
         } else {
             Serial1.transmitterEnable(s_direction_pin);
         }
@@ -371,7 +380,7 @@ int ax12GetRegister(int id, int regstart, int length){
     dxlWrite(0xFF);
     dxlWrite(id);
     dxlWrite(4);    // length
-    dxlWrite(AX_READ_DATA);
+    dxlWrite(DXL_READ_DATA);
     dxlWrite(regstart);
     dxlWrite(length);
     dxlWrite(checksum);
@@ -391,12 +400,12 @@ int ax12GetRegister(int id, int regstart, int length){
 /* Set the value of a single-byte register. */
 void ax12SetRegister(int id, int regstart, int data){
     setTX(id);
-    int checksum = ~((id + 4 + AX_WRITE_DATA + regstart + (data&0xff)) % 256);
+    int checksum = ~((id + 4 + DXL_WRITE_DATA + regstart + (data&0xff)) % 256);
     dxlWrite(0xFF);
     dxlWrite(0xFF);
     dxlWrite(id);
     dxlWrite(4);    // length
-    dxlWrite(AX_WRITE_DATA);
+    dxlWrite(DXL_WRITE_DATA);
     dxlWrite(regstart);
     dxlWrite(data&0xff);
     // checksum =
@@ -407,12 +416,12 @@ void ax12SetRegister(int id, int regstart, int data){
 /* Set the value of a double-byte register. */
 void ax12SetRegister2(int id, int regstart, int data){
     setTX(id);
-    int checksum = ~((id + 5 + AX_WRITE_DATA + regstart + (data&0xFF) + ((data&0xFF00)>>8)) % 256);
+    int checksum = ~((id + 5 + DXL_WRITE_DATA + regstart + (data&0xFF) + ((data&0xFF00)>>8)) % 256);
     dxlWrite(0xFF);
     dxlWrite(0xFF);
     dxlWrite(id);
     dxlWrite(5);    // length
-    dxlWrite(AX_WRITE_DATA);
+    dxlWrite(DXL_WRITE_DATA);
     dxlWrite(regstart);
     dxlWrite(data&0xff);
     dxlWrite((data&0xff00)>>8);
@@ -426,12 +435,12 @@ void ax12SetRegister2(int id, int regstart, int data){
 bool dxlP1Ping(int id) {
     setTX(id);
     // 0xFF 0xFF ID LENGTH INSTRUCTION PARAM... CHECKSUM
-    int checksum = ~((id + 2 + AX_PING)%256);
+    int checksum = ~((id + 2 + DXL_PING)%256);
     dxlWrite(0xFF);
     dxlWrite(0xFF);
     dxlWrite(id);
     dxlWrite(2);    // length
-    dxlWrite(AX_PING);
+    dxlWrite(DXL_PING);
     dxlWrite(checksum);
 
     setRX(id);
@@ -587,7 +596,7 @@ void dxlP2SetRegisters(int id, int regstart, uint32_t data, uint8_t data_size){
     *packet++ = id;     // 4
     *packet++ = 5 + data_size;    // length lsb 5
     *packet++ = 0;    // msb
-    *packet++ = AX_WRITE_DATA;
+    *packet++ = DXL_WRITE_DATA;
     *packet++ = regstart & 0xff;        // Reg start low/high
     *packet++ = (regstart >> 8) & 0xff;  
     while (data_size--) {
@@ -616,7 +625,7 @@ int dxlP2GetRegisters(int id, int regstart, int length){
     *packet++ = id;     // 4
     *packet++ = 7;    // length lsb 5
     *packet++ = 0;    // msb
-    *packet++ = AX_READ_DATA;
+    *packet++ = DXL_READ_DATA;
     *packet++ = regstart & 0xff;        // Reg start low/high
     *packet++ = (regstart >> 8) & 0xff;  
     *packet++ = length & 0xff;
@@ -654,7 +663,7 @@ uint32_t dxlP2Ping(int id) {
     *packet++ = id;     // 4
     *packet++ = 3;    // 
     *packet++ = 0;    // msb
-    *packet++ = AX_PING;
+    *packet++ = DXL_PING;
 
     // checksum =
     uint16_t CRC = update_crc ( 0, ax_tx_buffer, 3+ 5) ;
@@ -675,13 +684,13 @@ uint32_t dxlP2Ping(int id) {
 
 bool dxlP1SyncWrite(uint8_t servo_count, uint8_t regstart, uint8_t regcount, uint8_t *buffer) {
     uint16_t buffer_length = (servo_count * (regcount+1));   
-    int checksum = 254 + (buffer_length + 4) + AX_SYNC_WRITE + regcount + regstart;
+    int checksum = 254 + (buffer_length + 4) + DXL_SYNC_WRITE + regcount + regstart;
     setTXall();
     ax12write(0xFF);
     ax12write(0xFF);
     ax12write(0xFE);
     ax12write(buffer_length + 4);
-    ax12write(AX_SYNC_WRITE);
+    ax12write(DXL_SYNC_WRITE);
     ax12write(regstart);
     ax12write(regcount);
     for(int i=0; i<buffer_length; i++)
@@ -696,6 +705,8 @@ bool dxlP1SyncWrite(uint8_t servo_count, uint8_t regstart, uint8_t regcount, uin
     return true;
 }
 
+//=============================================================================
+
 bool dxlP2SyncWrite(uint8_t servo_count, uint16_t regstart, uint16_t regcount, uint8_t *buffer) {
     uint8_t *packet = ax_tx_buffer;
     uint16_t buffer_length = (servo_count * (regcount+1));  
@@ -707,7 +718,39 @@ bool dxlP2SyncWrite(uint8_t servo_count, uint16_t regstart, uint16_t regcount, u
     *packet++ = 0xfe;     // 4
     *packet++ = packet_length & 0xff;    // 
     *packet++ = packet_length >> 8;    // msb
-    *packet++ = AX_SYNC_WRITE;
+    *packet++ = DXL_SYNC_WRITE;
+    *packet++ = regstart & 0xff;    // 
+    *packet++ = regstart >> 8;    // msb
+    *packet++ = regcount & 0xff;    // 
+    *packet++ = regcount >> 8;    // msb
+
+    // checksum = currently the 
+    uint16_t CRC = update_crc ( 0, ax_tx_buffer,  (uint16_t)(packet-ax_tx_buffer));
+    CRC = update_crc(CRC, buffer, buffer_length);
+    setTXall();
+    dxlWrite(ax_tx_buffer, (uint16_t)(packet-ax_tx_buffer)); // output the first part of the packet
+    dxlWrite(buffer, buffer_length);
+    dxlWrite(CRC & 0xff);
+    dxlWrite((CRC>>8) & 0xff);
+
+    setRX(0);
+    return true;
+}
+
+//=============================================================================
+
+bool dxlP2SyncRead(uint8_t servo_count, uint16_t regstart, uint16_t regcount, uint8_t *buffer) {
+    uint8_t *packet = ax_tx_buffer;
+    uint16_t buffer_length = servo_count;  
+    uint16_t packet_length = buffer_length + 7;
+    *packet++ = 0xFF;   //0
+    *packet++ = 0xFF;   // 1
+    *packet++ = 0xFd;   // 2
+    *packet++ = 0;      // 3
+    *packet++ = 0xfe;     // 4
+    *packet++ = packet_length & 0xff;    // 
+    *packet++ = packet_length >> 8;    // msb
+    *packet++ = DXL_SYNC_READ;
     *packet++ = regstart & 0xff;    // 
     *packet++ = regstart >> 8;    // msb
     *packet++ = regcount & 0xff;    // 
