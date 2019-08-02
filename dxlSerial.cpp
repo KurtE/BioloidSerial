@@ -29,13 +29,115 @@ uint8_t ax_tx_buffer[AX12_BUFFER_SIZE];
 static Stream* s_paxStream;
 static int s_direction_pin = -1;    // assume no direction pin.
 
+#if defined(KINETISK) || defined (KINETISL)
+static KINETISK_UART_t *s_pkuart = nullptr;
+void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, int rx_pin ) {
+    // Need to enable the PU resistor on the TX pin
+    s_paxStream = pserial;
+    s_direction_pin = direction_pin;    // save away.
+    if (pserial == &Serial1) s_pkuart = &KINETISK_UART0;
+    else if (pserial == &Serial2) s_pkuart = &KINETISK_UART1;
+    else if (pserial == &Serial3) s_pkuart = &KINETISK_UART2;
+#if defined(__MK64FX512__) || defined(__MK66FX1M0__) 
+    else if (pserial == &Serial4) s_pkuart = &KINETISK_UART3;
+    else if (pserial == &Serial5) s_pkuart = &KINETISK_UART4;
+#endif
 
+    pserial->begin(baud);
+    if (tx_pin != -1) {
+        pserial->setTX(tx_pin);
+    } else {
+        tx_pin = 1; // default Serial 1 TX
+    }
+    if (rx_pin != -1) {
+        pserial->setRX(rx_pin);
+    }
+    if (s_direction_pin == -1) {
+        s_pkuart->C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        volatile uint32_t *reg = portConfigRegister(tx_pin);
+        *reg = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+    } else {
+        pserial->transmitterEnable(s_direction_pin);
+    }
+    setRX(0);
+}
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
+// Teensy4
+static IMXRT_LPUART_t *s_pkuart = nullptr;
+void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, int rx_pin ) {
+    // Need to enable the PU resistor on the TX pin
+    s_paxStream = pserial;
+    s_direction_pin = direction_pin;    // save away.
+    if (pserial == &Serial1) s_pkuart = &IMXRT_LPUART6;
+    else if (pserial == &Serial2) s_pkuart = &IMXRT_LPUART4;
+    else if (pserial == &Serial3) s_pkuart = &IMXRT_LPUART2;
+    else if (pserial == &Serial4) s_pkuart = &IMXRT_LPUART3;
+    else if (pserial == &Serial5) s_pkuart = &IMXRT_LPUART8;
+    else if (pserial == &Serial6) {s_pkuart = &IMXRT_LPUART1; Serial.println("dxlInit Serial6"); }
+    else if (pserial == &Serial7) s_pkuart = &IMXRT_LPUART7;
+//    else if (pserial == &Serial8) s_pkuart = &IMXRT_LPUART5;
+    pserial->begin(baud);
+    if (tx_pin != -1) {
+        pserial->setTX(tx_pin);
+    } else {
+        tx_pin = 1; // default Serial 1 TX
+    }
+    if (rx_pin != -1) {
+        pserial->setRX(rx_pin);
+    }
+    if (s_direction_pin == -1) {
+        s_pkuart->CTRL |= LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC;
+/*
+        s_pkuart->C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+        volatile uint32_t *reg = portConfigRegister(tx_pin);
+        *reg = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+*/        
+    } else {
+        Serial.printf("Direction Pin:%d\n", s_direction_pin);
+        pserial->transmitterEnable(s_direction_pin);
+    }
+    setRX(0);
+}
+#endif
+
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)
+void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_pin ) {
+    // Need to enable the PU resistor on the TX pin
+    s_paxStream = pstream;
+    s_direction_pin = direction_pin;    // save away.
+    HardwareSerial *pserial = nullptr;
+    if      (pstream == &Serial1) {pserial = &Serial1; s_pkuart = &IMXRT_LPUART6; Serial.println("Serial1");}
+    else if (pstream == &Serial2) {pserial = &Serial2; s_pkuart = &IMXRT_LPUART4; Serial.println("Serial2");}
+    else if (pstream == &Serial3) {pserial = &Serial3; s_pkuart = &IMXRT_LPUART2; Serial.println("Serial3");}
+    else if (pstream == &Serial4) {pserial = &Serial4; s_pkuart = &IMXRT_LPUART3; Serial.println("Serial4");}
+    else if (pstream == &Serial5) {pserial = &Serial5; s_pkuart = &IMXRT_LPUART8; Serial.println("Serial5");}
+    else if (pstream == &Serial6) {pserial = &Serial6; s_pkuart = &IMXRT_LPUART1; Serial.println("Serial6");}
+    else if (pstream == &Serial7) {pserial = &Serial7; s_pkuart = &IMXRT_LPUART7; Serial.println("Serial7");}
+
+    if (pserial) {
+        pserial->begin(baud);
+        if (tx_pin != -1) pserial->setTX(tx_pin);
+        if (rx_pin != -1) pserial->setRX(rx_pin);
+
+        if (s_direction_pin == -1) {
+//            UART0_C1 |= UART_C1_LOOPS | UART_C1_RSRC;
+            s_pkuart->CTRL |= LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC;
+//            volatile uint32_t *reg = portConfigRegister(tx_pin);
+//            *reg = PORT_PCR_DSE | PORT_PCR_SRE | PORT_PCR_MUX(3) | PORT_PCR_PE | PORT_PCR_PS; // pullup on output pin;
+        } else {
+            pserial->transmitterEnable(s_direction_pin);
+        }
+    }
+    setRX(0);
+}
+#else
 /** initializes serial1 transmit at baud, 8-N-1 */
 void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_pin ) {
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pstream;
     s_direction_pin = direction_pin;    // save away.
 
+    Serial.println("dxlInit by stream");
     // Lets do some init here
     if (s_paxStream == &Serial) {
         Serial.begin(baud);
@@ -124,6 +226,7 @@ void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_p
 #endif
     setRX(0);
 }
+#endif
 
 void dxlEnd() {
      if (s_paxStream == &Serial) {
@@ -172,38 +275,23 @@ void setTX(int id){
 
 #if defined(KINETISK)  || defined(__MKL26Z64__)
     // Teensy 3.1/2 or LC
+    if (s_pkuart) s_pkuart->C3 |= UART_C3_TXDIR;
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
+    if (s_pkuart) s_pkuart->CTRL |= LPUART_CTRL_TXDIR;
 
-    if (s_paxStream == (Stream*)&Serial1) {
-        UART0_C3 |= UART_C3_TXDIR;
-    }
-    else if (s_paxStream == (Stream*)&Serial2) {
-        UART1_C3 |= UART_C3_TXDIR;
-    }
-    else if (s_paxStream == (Stream*)&Serial3) {
-        UART2_C3 |= UART_C3_TXDIR;
-    }
-#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(KINETISL)
-    else if (s_paxStream == (Stream*)&Serial4) {
-        UART3_C3 |= UART_C3_TXDIR;
-    }
-    else if (s_paxStream == (Stream*)&Serial5) {
-        UART4_C3 |= UART_C3_TXDIR;
-    }
-#endif
 #elif defined(__ARDUINO_X86__)
     // Currently assume using USB2AX or the like
-
 #else
     if (s_paxStream == (Stream*)&Serial1)
         UCSR1B = /*(1 << UDRIE1) |*/ (1 << TXEN1);
-#ifdef SERIAL_PORT_HARDWARE1
+    #ifdef SERIAL_PORT_HARDWARE1
     if (s_paxStream == (Stream*)&Serial2)
         UCSR2B = /*(1 << UDRIE3) |*/ (1 << TXEN2);
-#endif
-#ifdef SERIAL_PORT_HARDWARE2
+    #endif
+    #ifdef SERIAL_PORT_HARDWARE2
     if (s_paxStream == (Stream*)&Serial3)
         UCSR3B =  /*(1 << UDRIE3) |*/ (1 << TXEN3);
-#endif
+    #endif
 #endif
 }
 
@@ -235,25 +323,11 @@ void setRX(int id){
     // Make sure everything is output before switching.
     s_paxStream->flush();
 #if defined(KINETISK)  || defined(__MKL26Z64__)
-    // Teensy 3.1
-    if (s_paxStream == (Stream*)&Serial1) {
-        UART0_C3 &= ~UART_C3_TXDIR;
-    }
-    if (s_paxStream == (Stream*)&Serial2) {
-        UART1_C3 &= ~UART_C3_TXDIR;
-    }
-    if (s_paxStream == (Stream*)&Serial3) {
-        UART2_C3 &= ~UART_C3_TXDIR;
-    }
+    if (s_pkuart) s_pkuart->C3 &= ~UART_C3_TXDIR;
 
-#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(KINETISL)
-    else if (s_paxStream == (Stream*)&Serial4) {
-        UART3_C3 &= ~UART_C3_TXDIR;
-    }
-    else if (s_paxStream == (Stream*)&Serial5) {
-        UART4_C3 &= ~UART_C3_TXDIR;
-    }
-#endif
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
+    if (s_pkuart) s_pkuart->CTRL &= ~LPUART_CTRL_TXDIR;
+
 #elif defined(__ARDUINO_X86__)
     // Currently assume using USB2AX or the like
 
@@ -317,6 +391,8 @@ int dxlGetLastError(){ return dxlError; }
 
 #if defined(KINETISK)  || defined(__MKL26Z64__)
 #define COUNTER_TIMEOUT 12000
+#elif defined(__arm__) && defined(TEENSYDUINO) && (defined(__IMXRT1052__) || defined(__IMXRT1062__))
+#define COUNTER_TIMEOUT 100000
 #else
 #define COUNTER_TIMEOUT 3000
 #endif
