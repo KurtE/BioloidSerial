@@ -1,6 +1,16 @@
 BioloidSerial	KEYWORD1
 BioloidController	KEYWORD1
 BioloidIK	KEYWORD1
+dxlInit	KEYWORD2
+dxlEnd	KEYWORD2
+dxlGetLastError	KEYWORD2
+dxlP1SyncWrite	KEYWORD2
+dxlP2SetRegisters	KEYWORD2
+dxlP2GetRegisters	KEYWORD2
+dxlP2ReadPacket	KEYWORD2
+dxlP2Ping	KEYWORD2
+dxlP2SyncWrite	KEYWORD2
+dxlP2SyncRead	KEYWORD2
 ax12GetRegister	KEYWORD2
 ax12SetRegister	KEYWORD2
 ax12SetRegister2	KEYWORD2
@@ -11,4 +21,3 @@ writePose	KEYWORD2
 interpolateSetup	KEYWORD2
 interpolateStep	KEYWORD2
 interpolating	KEYWORD2
-
