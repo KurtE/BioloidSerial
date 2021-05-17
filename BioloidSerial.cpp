@@ -45,6 +45,28 @@ void BioloidControllerEx::begin(long baud, Stream* pstream, int direction_pin){
     ax12Init(baud, pstream, direction_pin);  
 }
 
+#if defined(KINETISK) || defined(KINETISL) || defined(__IMXRT1062__)
+void BioloidControllerEx::begin(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, int rx_pin) {
+    // BUGBUG:: should combine these two
+    int i;
+    // setup storage
+    id_ = (unsigned char *) malloc(AX12_MAX_SERVOS * sizeof(unsigned char));
+    pose_ = (unsigned int *) malloc(AX12_MAX_SERVOS * sizeof(unsigned int));
+    nextpose_ = (unsigned int *) malloc(AX12_MAX_SERVOS * sizeof(unsigned int));
+    speed_ = (int *) malloc(AX12_MAX_SERVOS * sizeof(int));
+    // initialize
+    for(i=0;i<AX12_MAX_SERVOS;i++){
+        id_[i] = i+1;
+        pose_[i] = 512;
+        nextpose_[i] = 512;
+    }
+    frameLength = BIOLOID_FRAME_LENGTH;
+    interpolating = 0;
+    playing = 0;
+    nextframe_ = millis();
+    dxlInit(baud, pserial, direction_pin, tx_pin, rx_pin);  
+}
+#endif
 
 void BioloidControllerEx::setId(int index, int id){
     id_[index] = id;

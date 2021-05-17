@@ -205,6 +205,7 @@
 //=============================================================
 // Helper functions
 #if defined(KINETISK) || defined(KINETISL) || defined(__IMXRT1052__) || defined(__IMXRT1062__)
+#if defined(KINETISK) || defined(KINETISL) || defined(__IMXRT1062__)
 void dxlInit(long baud, HardwareSerial* pserial, int direction_pin = -1, int tx_pin = -1, int rx_pin = -1);
 #endif
 void dxlInit(long baud, Stream* pStream, int direction_pin = -1, int tx_pin = -1, int rx_pin = -1);

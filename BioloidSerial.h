@@ -48,7 +48,9 @@ class BioloidControllerEx
     // Changed to two step init...
     BioloidControllerEx();               // baud usually 1000000
     void begin(long baud=1000000, Stream* pstream = (Stream*)PAX12Serial, int direction_pin = -1);
-    
+#if defined(KINETISK) || defined(KINETISL) || defined(__IMXRT1062__)
+    void begin(long baud, HardwareSerial* pserial, int direction_pin = -1, int tx_pin = -1, int rx_pin = -1);
+#endif    
 
     /* Pose Manipulation */
     void loadPose( const unsigned int * addr ); // load a named pose from FLASH  
