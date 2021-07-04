@@ -43,6 +43,21 @@ void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, 
     else if (pserial == &Serial5) s_pkuart = &KINETISK_UART4;
 #endif
 
+    #ifdef SERIAL_HALF_DUPLEX  // new versions of Hardware Serial 
+    if (tx_pin != -1) {
+        pserial->setTX(tx_pin);
+    } 
+    if (rx_pin != -1) {
+        pserial->setRX(rx_pin);
+    }
+    if (s_direction_pin == -1) {
+        pserial->begin(baud, SERIAL_HALF_DUPLEX);
+    } else {
+        pserial->begin(baud);
+        Serial.printf("Direction Pin:%d\n", s_direction_pin);
+        pserial->transmitterEnable(s_direction_pin);
+    }
+    #else
     pserial->begin(baud);
     if (tx_pin != -1) {
         pserial->setTX(tx_pin);
@@ -59,8 +74,10 @@ void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, 
     } else {
         pserial->transmitterEnable(s_direction_pin);
     }
+    #endif
     setRX(0);
 }
+
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
 // Teensy4
 static IMXRT_LPUART_t *s_pkuart = nullptr;
@@ -75,6 +92,22 @@ void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, 
     else if (pserial == &Serial5) s_pkuart = &IMXRT_LPUART8;
     else if (pserial == &Serial6) {s_pkuart = &IMXRT_LPUART1; Serial.println("dxlInit Serial6"); }
     else if (pserial == &Serial7) s_pkuart = &IMXRT_LPUART7;
+
+    #ifdef SERIAL_HALF_DUPLEX  // new versions of Hardware Serial 
+    if (tx_pin != -1) {
+        pserial->setTX(tx_pin);
+    } 
+    if (rx_pin != -1) {
+        pserial->setRX(rx_pin);
+    }
+    if (s_direction_pin == -1) {
+        pserial->begin(baud, SERIAL_HALF_DUPLEX);
+    } else {
+        pserial->begin(baud);
+        Serial.printf("Direction Pin:%d\n", s_direction_pin);
+        pserial->transmitterEnable(s_direction_pin);
+    }
+    #else
 //    else if (pserial == &Serial8) s_pkuart = &IMXRT_LPUART5;
     pserial->begin(baud);
     if (tx_pin != -1) {
@@ -96,12 +129,23 @@ void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, 
         Serial.printf("Direction Pin:%d\n", s_direction_pin);
         pserial->transmitterEnable(s_direction_pin);
     }
+    #endif
     setRX(0);
 }
 #endif
 
 #if defined(__IMXRT1052__) || defined(__IMXRT1062__)
 void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_pin ) {
+#if 1    
+    // only implement one place...
+    if      (pstream == &Serial1) {dxlInit(baud, (HardwareSerial*)&Serial1, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial2) {dxlInit(baud, (HardwareSerial*)&Serial2, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial3) {dxlInit(baud, (HardwareSerial*)&Serial3, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial4) {dxlInit(baud, (HardwareSerial*)&Serial4, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial5) {dxlInit(baud, (HardwareSerial*)&Serial5, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial6) {dxlInit(baud, (HardwareSerial*)&Serial6, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial7) {dxlInit(baud, (HardwareSerial*)&Serial7, direction_pin, tx_pin, rx_pin); return;}
+#else
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pstream;
     s_direction_pin = direction_pin;    // save away.
@@ -129,6 +173,7 @@ void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_p
         }
     }
     setRX(0);
+#endif    
 }
 #else
 /** initializes serial1 transmit at baud, 8-N-1 */
@@ -304,6 +349,32 @@ void flushAX12InputBuffer(void)  {
     }
 }
 
+#if defined(TEENSYDUINO)
+void setRX(int id){
+
+    // First clear our input buffer
+    flushAX12InputBuffer();
+    //digitalWriteFast(4, HIGH);
+    // Now setup to enable the RX and disable the TX
+    // If we are using hardware direction pin, can bypass the rest...
+    #ifndef SERIAL_HALF_DUPLEX
+    if (s_direction_pin != -1) {
+        return;
+    }
+
+    // Make sure everything is output before switching.
+    s_paxStream->flush();
+#if defined(KINETISK)  || defined(__MKL26Z64__)
+    if (s_pkuart) s_pkuart->C3 &= ~UART_C3_TXDIR;
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
+    if (s_pkuart) s_pkuart->CTRL &= ~LPUART_CTRL_TXDIR;
+#endif
+#endif
+    //digitalWriteFast(4, LOW);
+}
+
+#else
+// Not Teensyduino
 void setRX(int id){
 
     // First clear our input buffer
@@ -312,42 +383,26 @@ void setRX(int id){
     // Now setup to enable the RX and disable the TX
     // If we are using hardware direction pin, can bypass the rest...
     if (s_direction_pin != -1) {
-#if !defined(TEENSYDUINO)
         // Make sure all of the output has happened before we switch the direction pin.
         s_paxStream->flush();
         digitalWrite(s_direction_pin, LOW);
-#endif
         return;
     }
 
     // Make sure everything is output before switching.
     s_paxStream->flush();
-#if defined(KINETISK)  || defined(__MKL26Z64__)
-    if (s_pkuart) s_pkuart->C3 &= ~UART_C3_TXDIR;
-
-#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
-    if (s_pkuart) s_pkuart->CTRL &= ~LPUART_CTRL_TXDIR;
-
-#elif defined(__ARDUINO_X86__)
-    // Currently assume using USB2AX or the like
-
-#else
-    if (s_paxStream == (Stream*)&Serial1) {
-        UCSR1B = ((1 << RXCIE1) | (1 << RXEN1));
-    }
-#ifdef SERIAL_PORT_HARDWARE1
-    if (s_paxStream == (Stream*)&Serial2)
-        UCSR2B = ((1 << RXCIE2) | (1 << RXEN2);
-#endif
-#ifdef SERIAL_PORT_HARDWARE2
-    if (s_paxStream == (Stream*)&Serial3)
-        UCSR3B = ((1 << RXCIE3) | (1 << RXEN3));
-#endif
+#ifdef ARDUINO_ARCH_AVR
+    if (s_paxStream == (Stream*)&Serial1)  UCSR1B = ((1 << RXCIE1) | (1 << RXEN1));
+    #ifdef SERIAL_PORT_HARDWARE1
+    if (s_paxStream == (Stream*)&Serial2) UCSR2B = ((1 << RXCIE2) | (1 << RXEN2));
+    #endif
+    #ifdef SERIAL_PORT_HARDWARE2
+    if (s_paxStream == (Stream*)&Serial3) UCSR3B = ((1 << RXCIE3) | (1 << RXEN3));
+    #endif
 #endif
     //digitalWriteFast(4, LOW);
 }
-
-
+#endif
 
 void dxlWrite(unsigned char *pdata, int length){
 #if defined(ARDUINO_ARCH_AVR)
