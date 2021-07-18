@@ -145,6 +145,10 @@ void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_p
     else if (pstream == &Serial5) {dxlInit(baud, (HardwareSerial*)&Serial5, direction_pin, tx_pin, rx_pin); return;}
     else if (pstream == &Serial6) {dxlInit(baud, (HardwareSerial*)&Serial6, direction_pin, tx_pin, rx_pin); return;}
     else if (pstream == &Serial7) {dxlInit(baud, (HardwareSerial*)&Serial7, direction_pin, tx_pin, rx_pin); return;}
+    // Not a hardware Serial... 
+    s_paxStream = pstream;
+    s_direction_pin = direction_pin;    // save away.
+    HardwareSerial *pserial = nullptr;    
 #else
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pstream;
