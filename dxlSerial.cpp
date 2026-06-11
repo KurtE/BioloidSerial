@@ -18,7 +18,7 @@
 */
 
 #include "dxlSerial.h"
-#ifndef __ARDUINO_X86__
+#if !defined(__ARDUINO_X86__) && !defined(ARDUINO_UNOR4_MINIMA) && !defined(ARDUINO_UNOR4_WIFI)
 #include <avr/io.h>
 #endif
 
@@ -328,7 +328,7 @@ void setTX(int id){
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
     if (s_pkuart) s_pkuart->CTRL |= LPUART_CTRL_TXDIR;
 
-#elif defined(__ARDUINO_X86__)
+#elif defined(__ARDUINO_X86__) || defined(ARDUINO_UNOR4_MINIMA) || defined(ARDUINO_UNOR4_WIFI)
     // Currently assume using USB2AX or the like
 #else
     if (s_paxStream == (Stream*)&Serial1)
