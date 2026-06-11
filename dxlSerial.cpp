@@ -81,7 +81,7 @@ void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, 
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
 // Teensy4
 static IMXRT_LPUART_t *s_pkuart = nullptr;
-void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, int rx_pin ) {
+void dxlInit(long baud, HardwareSerialIMXRT* pserial, int direction_pin, int tx_pin, int rx_pin ) {
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pserial;
     s_direction_pin = direction_pin;    // save away.
@@ -138,17 +138,17 @@ void dxlInit(long baud, HardwareSerial* pserial, int direction_pin, int tx_pin, 
 void dxlInit(long baud, Stream* pstream, int direction_pin, int tx_pin, int rx_pin ) {
 #if 1    
     // only implement one place...
-    if      (pstream == &Serial1) {dxlInit(baud, (HardwareSerial*)&Serial1, direction_pin, tx_pin, rx_pin); return;}
-    else if (pstream == &Serial2) {dxlInit(baud, (HardwareSerial*)&Serial2, direction_pin, tx_pin, rx_pin); return;}
-    else if (pstream == &Serial3) {dxlInit(baud, (HardwareSerial*)&Serial3, direction_pin, tx_pin, rx_pin); return;}
-    else if (pstream == &Serial4) {dxlInit(baud, (HardwareSerial*)&Serial4, direction_pin, tx_pin, rx_pin); return;}
-    else if (pstream == &Serial5) {dxlInit(baud, (HardwareSerial*)&Serial5, direction_pin, tx_pin, rx_pin); return;}
-    else if (pstream == &Serial6) {dxlInit(baud, (HardwareSerial*)&Serial6, direction_pin, tx_pin, rx_pin); return;}
-    else if (pstream == &Serial7) {dxlInit(baud, (HardwareSerial*)&Serial7, direction_pin, tx_pin, rx_pin); return;}
+    if      (pstream == &Serial1) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial1, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial2) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial2, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial3) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial3, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial4) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial4, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial5) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial5, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial6) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial6, direction_pin, tx_pin, rx_pin); return;}
+    else if (pstream == &Serial7) {dxlInit(baud, (HardwareSerialIMXRT*)&Serial7, direction_pin, tx_pin, rx_pin); return;}
     // Not a hardware Serial... 
     s_paxStream = pstream;
     s_direction_pin = direction_pin;    // save away.
-    HardwareSerial *pserial = nullptr;    
+    //HardwareSerial *pserial = nullptr;    
 #else
     // Need to enable the PU resistor on the TX pin
     s_paxStream = pstream;
